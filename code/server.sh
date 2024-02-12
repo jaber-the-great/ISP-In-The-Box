@@ -71,7 +71,8 @@ ip netns exec $NS2 sed -i '1s/^/nameserver 8.8.8.8\n /' /etc/resolv.conf
 
 # Routing configurations to route the dat between two namespaces
 ip netns exec $NS1 ip route del default dev veth1 via 172.16.1.2
-ip netns exec $NS1 ip route add default dev veth2
+ip netns exec $NS1 ip route add default dev veth1
+ip netns exec $NS1 ip route add default dev veth1 via 172.16.3.1
 ip netns exec $NS2 ip route add 172.16.1.0/30 dev veth3
 ip netns exec $NS2 ip route change default via 172.16.3.2 dev veth5
 
@@ -86,3 +87,7 @@ ip link add $BR type bridge
 ip link set dev veth2 master $BR
 ip link set dev veth4 master $BR
 ip link set dev $BR up
+
+# Adding the routes back to the GRE tunnel
+ip route add 192.168.1.0/24 dev veth6 via 172.16.3.1 
+ip netns exec $NS2 ip route add 192.168.1.0/24 dev veth3 via 172.16.1.1
