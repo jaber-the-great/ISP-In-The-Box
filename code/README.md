@@ -15,3 +15,14 @@
 * The namespace 2 gets the traffic from namespace 1, NAT it to the upstream interface of the ISP in the box. 
 * When the traffic comes back from upstream interface, the opposite of NAT operation would happen, and it has IP addresses in specific range
 * Namespace 2 sends this traffic to namespace one through LibreQoS shaper.
+
+
+## Client script
+* First installs the requried modules and packages for GRE tunnel 
+* Then, configure the GRE tunnel. The correct configuration shoulb be able to ping the other side of tunnel
+* There are several ways to route the traffic through GRE tunnel to our ISP in the box:
+    1. Define GRE interface as default route (Not recommended for PINOT experiment)
+    2. Use IP table to make the system route the traffic through ISP in the box for specific networks 
+    3. Make the net application use this interface by command parameters eg ping -I gre1 8.8.8.8
+    4. Create a docker network and make the docker containers connecting to that network use GRE tunnel as default route
+    5. Create linux namespace and by configuring the iptable, make it use as default route
