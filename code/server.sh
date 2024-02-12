@@ -9,6 +9,12 @@ ServerIP='128.111.aa.aa'
 TunnelIP='192.168.11.1/30'
 
 #########################################################################
+# Install the required packages and modules for gre tunnel
+sudo modprobe ip_gre
+lsmod | grep gre
+sudo apt install iptables iproute2
+sudo echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+sudo sysctl -p
 # Create the GRE tunnel and the namespace and configure the GRE tunnel
 sudo iptunnel add gre1 mode gre remote $clientIP local $ServerIP ttl 255
 ip netns add $NS1
