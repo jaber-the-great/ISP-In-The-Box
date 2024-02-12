@@ -7,7 +7,7 @@ NS2="namespace2"
 clientIP='169.222.11.xx'
 ServerIP='128.111.aa.aa'
 TunnelIP='192.168.11.1/30'
-
+OutInterface='eno2'
 #########################################################################
 # Install the required packages and modules for gre tunnel
 sudo modprobe ip_gre
@@ -35,7 +35,7 @@ ip netns exec $NS1 ip route add default via 172.16.1.2
 
 # Enable IP forwarding and configure the NAT and DNS, this part is not neccessary 
 # if you are connecting it to namespace2, it is just for unit testing
-iptables -t nat -A POSTROUTING -o eno2 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
 ip netns exec $NS1 sed -i '1s/^/nameserver 8.8.8.8\n /' /etc/resolv.conf
 # Use next line to test the first namespace works correctly, but then remove it
 # ip route add 192.168.11.0/24 via 172.16.1.1
@@ -65,8 +65,8 @@ ip netns exec $NS2 ip link set veth5 up
 # Configuring NAT and DNS inside the namespace2 to connect to the internet. 
 # It is better to use NAT here rather than on the main space physical interface
 ip netns exec $NS2 ip route add default via 172.16.3.2
-iptables -t nat -A POSTROUTING -o eno2 -j MASQUERADE
-ip netns exec $NS2 iptables -t nat -A POSTROUTING -o eno2 -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
+ip netns exec $NS2 iptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
 ip netns exec $NS2 sed -i '1s/^/nameserver 8.8.8.8\n /' /etc/resolv.conf
 
 # Routing configurations to route the dat between two namespaces
