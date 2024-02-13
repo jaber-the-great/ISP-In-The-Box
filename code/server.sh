@@ -4,11 +4,11 @@
 # The tunnel IP should be in th same subnet as the client device
 NS1="namespace1"
 NS2="namespace2"
-clientIP='169.222.11.xx'
+ClientIP='169.222.11.xx'
 ServerIP='128.111.aa.aa'
 TunnelIP='192.168.11.1/30'
 OutInterface='eno2'
-NumOfQueues='8'
+NumOfQueues=8
 #########################################################################
 # Install the required packages and modules for gre tunnel
 sudo modprobe ip_gre
@@ -17,14 +17,15 @@ sudo apt install iptables iproute2
 sudo echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 sudo sysctl -p
 # Create the GRE tunnel and the namespace and configure the GRE tunnel
-sudo iptunnel add gre1 mode gre remote $clientIP local $ServerIP ttl 255
+sudo iptunnel add gre1 mode gre remote $ClientIP local $ServerIP ttl 255
 ip netns add $NS1
 ip link set gre1 netns $NS1
 ip netns exec $NS1 ip addr add $TunnelIP dev gre1
 ip netns exec $NS1 ip link set gre1 up
 
 # Create veth pairs and assign IPs to the interfaces
-ip link add veth1 type veth peer name veth2
+sudo ip link add veth1 numrxqueues $NumOfQueues numtxqueues $NumOfQueues index 123 type veth peer name veth2 numrxqueues $NumOfQueues numtxqueues $NumOfQueues index 124 
+# ip link add veth1 type veth peer name veth2
 ip addr add 172.16.1.2/30 dev veth2
 ip link set veth2 up
 
@@ -34,16 +35,18 @@ ip netns exec $NS1 ip addr add 172.16.1.1/30 dev veth1
 ip netns exec $NS1 ip link set veth1 up
 ip netns exec $NS1 ip route add default via 172.16.1.2
 
-# Enable IP forwarding and configure the NAT and DNS, this part is not neccessary 
-# if you are connecting it to namespace2, it is just for unit testing
+# Configure the NAT(NATing to northbound interface of ISP in the box)
 iptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
+# Setting the DNS server for the namespace just in case of testing  
 ip netns exec $NS1 sed -i '1s/^/nameserver 8.8.8.8\n /' /etc/resolv.conf
 
 ###########################################################################
 # Create the second namespace and configure the veth pairs and the namespace
 ip netns add $NS2
 # This veth pair is used to connect the second namespace to the first namespace
-ip link add veth3 type veth peer name veth4
+sudo ip link add veth3 numrxqueues $NumOfQueues numtxqueues $NumOfQueues index 125 type veth peer name veth4 numrxqueues $NumOfQueues numtxqueues $NumOfQueues index 126
+
+# ip link add veth3 type veth peer name veth4
 # This veth pair is used to connect the second namespace to the main space
 ip link add veth5 type veth peer name veth6
 ip addr add 172.16.2.2/30 dev veth4
@@ -58,9 +61,11 @@ ip netns exec $NS2 ip addr add 172.16.3.1/30 dev veth5
 ip netns exec $NS2 ip link set veth3 up
 ip netns exec $NS2 ip link set veth5 up
 
-# Configuring NAT and DNS inside the namespace2 to connect to the internet. 
+
 ip netns exec $NS2 ip route add default via 172.16.3.2
 iptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
+
+# Configuring NAT and DNS inside the namespace2 to connect to the internet. 
 ip netns exec $NS2 iptables -t nat -A POSTROUTING -o veth5 -j MASQUERADE
 ip netns exec $NS2 sed -i '1s/^/nameserver 8.8.8.8\n /' /etc/resolv.conf
 
@@ -71,7 +76,8 @@ ip netns exec $NS1 ip route change default dev veth1 via 172.16.3.1
 ip netns exec $NS2 ip route add 172.16.1.0/30 dev veth3
 ip netns exec $NS2 ip route change default via 172.16.3.2 dev veth5
 
-# Increasing the number of queues for the veth interfaces
+# Increasing the number of queues for the veth interfaces, 
+# NO need to run it if you are specifying the number of queues in the veth creation
 ethtool -L veth2 tx $NumOfQueues rx $NumOfQueues
 ethtool -L veth4 tx $NumOfQueues rx $NumOfQueues
 ip netns exec $NS1 ethtool -L veth1 tx $NumOfQueues rx $NumOfQueues
@@ -87,3 +93,13 @@ ip link set dev $BR up
 # Adding the routes back to the GRE tunnel
 ip route add 192.168.1.0/24 dev veth6 via 172.16.3.1 
 ip netns exec $NS2 ip route add 192.168.1.0/24 dev veth3 via 172.16.1.1
+
+# Adding more clients to the server
+newClientIP='169.222.11.yy'
+# Increament with 4 for the next client
+# Do the same for the client device
+newTunnelIP='192.168.11.5/30'
+sudo iptunnel add gre1 mode gre remote $newClientIP local $ServerIP ttl 255
+ip link set gre1 netns $NS1
+ip netns exec $NS1 ip addr add $TunnelIP dev gre1
+ip netns exec $NS1 ip link set gre1 up
