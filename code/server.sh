@@ -35,7 +35,7 @@ ip netns exec $NS1 ip route add default via 172.16.1.2
 
 # Enable IP forwarding and configure the NAT and DNS, this part is not neccessary 
 # if you are connecting it to namespace2, it is just for unit testing
-iptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
+ptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
 ip netns exec $NS1 sed -i '1s/^/nameserver 8.8.8.8\n /' /etc/resolv.conf
 # Use next line to test the first namespace works correctly, but then remove it
 # ip route add 192.168.11.0/24 via 172.16.1.1
@@ -63,16 +63,15 @@ ip netns exec $NS2 ip link set veth3 up
 ip netns exec $NS2 ip link set veth5 up
 
 # Configuring NAT and DNS inside the namespace2 to connect to the internet. 
-# It is better to use NAT here rather than on the main space physical interface
 ip netns exec $NS2 ip route add default via 172.16.3.2
 iptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
-ip netns exec $NS2 iptables -t nat -A POSTROUTING -o $OutInterface -j MASQUERADE
+ip netns exec $NS2 iptables -t nat -A POSTROUTING -o veth5 -j MASQUERADE
 ip netns exec $NS2 sed -i '1s/^/nameserver 8.8.8.8\n /' /etc/resolv.conf
 
 # Routing configurations to route the dat between two namespaces
 ip netns exec $NS1 ip route del default dev veth1 via 172.16.1.2
 ip netns exec $NS1 ip route add default dev veth1
-ip netns exec $NS1 ip route add default dev veth1 via 172.16.3.1
+ip netns exec $NS1 ip route change default dev veth1 via 172.16.3.1
 ip netns exec $NS2 ip route add 172.16.1.0/30 dev veth3
 ip netns exec $NS2 ip route change default via 172.16.3.2 dev veth5
 
